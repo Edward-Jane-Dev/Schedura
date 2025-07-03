@@ -143,19 +143,29 @@
                 <label for="event-description" class="form-label">Description</label>
                 <textarea class="form-control" id="event-description" name="description" rows="2"></textarea>
               </div>
-              <div class="mb-3">
-                <label for="event-resource" class="form-label">Resource</label>
-                <select class="form-select" id="event-resource" name="resource" required>
-                  <option value="">Select resource...</option>
-                  <!-- Resource options to be populated dynamically -->
-                </select>
+              <div class="mb-3 d-flex align-items-end">
+                <div class="flex-grow-1">
+                  <label for="event-resource" class="form-label">Resource</label>
+                  <select class="form-select" id="event-resource" name="resource" required>
+                    <option value="">Select resource...</option>
+                    <!-- Resource options to be populated dynamically -->
+                  </select>
+                </div>
+                <button type="button" class="btn btn-link ms-2 pb-1" data-bs-toggle="modal" data-bs-target="#addResourceModal" title="Add Resource">
+                  <i class="bi bi-plus-circle"></i>
+                </button>
               </div>
-              <div class="mb-3">
-                <label for="event-type" class="form-label">Event Type</label>
-                <select class="form-select" id="event-type" name="event_type" required>
-                  <option value="">Select event type...</option>
-                  <!-- Event type options to be populated dynamically -->
-                </select>
+              <div class="mb-3 d-flex align-items-end">
+                <div class="flex-grow-1">
+                  <label for="event-type" class="form-label">Event Type</label>
+                  <select class="form-select" id="event-type" name="event_type" required>
+                    <option value="">Select event type...</option>
+                    <!-- Event type options to be populated dynamically -->
+                  </select>
+                </div>
+                <button type="button" class="btn btn-link ms-2 pb-1" data-bs-toggle="modal" data-bs-target="#addEventTypeModal" title="Add Event Type">
+                  <i class="bi bi-plus-circle"></i>
+                </button>
               </div>
               <div class="mb-3">
                 <label for="event-start" class="form-label">Start Time</label>
@@ -183,6 +193,94 @@
                 </select>
               </div>
               <button type="submit" class="btn btn-primary">Add Event</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Add EventType Modal -->
+    <div class="modal fade" id="addEventTypeModal" tabindex="-1" aria-labelledby="addEventTypeModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addEventTypeModalLabel">Add Event Type</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="add-event-type-form">
+              <div class="mb-3">
+                <label for="event-type-name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="event-type-name" name="name" required>
+              </div>
+              <div class="mb-3">
+                <label for="event-type-description" class="form-label">Description</label>
+                <textarea class="form-control" id="event-type-description" name="description" rows="2"></textarea>
+              </div>
+              <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" value="1" id="event-type-block-resource" name="block_resource">
+                <label class="form-check-label" for="event-type-block-resource">Block Resource</label>
+              </div>
+              <button type="submit" class="btn btn-primary">Add Event Type</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Add Resource Modal -->
+    <div class="modal fade" id="addResourceModal" tabindex="-1" aria-labelledby="addResourceModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addResourceModalLabel">Add Resource</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="add-resource-form">
+              <div class="mb-3">
+                <label for="resource-name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="resource-name" name="name" required>
+              </div>
+              <div class="mb-3">
+                <label for="resource-description" class="form-label">Description</label>
+                <textarea class="form-control" id="resource-description" name="description" rows="2"></textarea>
+              </div>
+              <div class="mb-3 d-flex align-items-end">
+                <div class="flex-grow-1">
+                  <label for="resource-category-modal" class="form-label">Category</label>
+                  <select class="form-select" id="resource-category-modal" name="category" required>
+                    <option value="">Select category...</option>
+                    <!-- Resource category options to be populated dynamically -->
+                  </select>
+                </div>
+                <button type="button" class="btn btn-link ms-2 pb-1" data-bs-toggle="modal" data-bs-target="#addResourceCategoryModal" title="Add Resource Category">
+                  <i class="bi bi-plus-circle"></i>
+                </button>
+              </div>
+              <button type="submit" class="btn btn-primary">Add Resource</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Add Resource Category Modal -->
+    <div class="modal fade" id="addResourceCategoryModal" tabindex="-1" aria-labelledby="addResourceCategoryModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addResourceCategoryModalLabel">Add Resource Category</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="add-resource-category-form">
+              <div class="mb-3">
+                <label for="resource-category-name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="resource-category-name" name="name" required>
+              </div>
+              <div class="mb-3">
+                <label for="resource-category-description" class="form-label">Description</label>
+                <textarea class="form-control" id="resource-category-description" name="description" rows="2"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary">Add Resource Category</button>
             </form>
           </div>
         </div>
