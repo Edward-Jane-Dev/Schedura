@@ -7,7 +7,7 @@ class TestBasic(unittest.TestCase):
 
     def test_basic(self):
         self.driver.get("http://localhost:8000/")
-        self.assertIn("Congratulations!", self.driver.title)
+        self.assertIn("Schedura", self.driver.page_source)
     
     def tearDown(self):
         self.driver.close()
