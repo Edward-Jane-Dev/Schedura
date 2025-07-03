@@ -34,6 +34,7 @@ class Event(models.Model):
     event_type = models.ForeignKey(EventType, on_delete=models.CASCADE)
     is_recurring = models.BooleanField(default=False) # type: ignore
     recurrence_rule = models.TextField(blank=True)
+    repeat_until = models.DateField(null=True, blank=True)
     
     def __str__(self):
         return self.name
