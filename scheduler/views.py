@@ -4,3 +4,6 @@ from django.shortcuts import render
 # Create your views here.
 def index(request):
     return HttpResponse(b"Hello, World! Welcome to Schedura, a scheduling app made with Django!")
+
+def home(request):
+    return render(request, 'home.html')
