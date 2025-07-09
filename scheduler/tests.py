@@ -4,6 +4,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import time
+from datetime import datetime, timedelta
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from .models import Event, Resource, ResourceCategory, EventType
@@ -168,7 +169,7 @@ class SchedulerSeleniumUITests(LiveServerTestCase):
         self.browser.find_element(By.ID, 'resource-description').send_keys('Created via UI')
         dropdown = self.browser.find_element(By.ID, 'resource-category-modal')
         options = [o.text for o in dropdown.find_elements(By.TAG_NAME, 'option')]
-        print(options)
+        # print(options)
         dropdown.find_elements(By.TAG_NAME, 'option')[1].click()
         self.browser.find_element(By.ID, 'add-resource-form').submit()
         WebDriverWait(self.browser, 5).until(
@@ -207,50 +208,76 @@ class SchedulerSeleniumUITests(LiveServerTestCase):
         options = [o.text for o in event_resource_dropdown.find_elements(By.TAG_NAME, 'option')]
         assert 'UI Resource' in options
 
-    # def test_add_event_type_via_ui(self):
-    #     self.open_schedule_page()
-    #     add_event_type_btn = self.browser.find_element(By.CSS_SELECTOR, '[data-bs-target="#addEventTypeModal"]')
-    #     add_event_type_btn.click()
-    #     WebDriverWait(self.browser, 5).until(
-    #         EC.visibility_of_element_located((By.CSS_SELECTOR, '#addEventTypeModal.show'))
-    #     )
-    #     self.browser.find_element(By.ID, 'event-type-name').send_keys('UI EventType')
-    #     self.browser.find_element(By.ID, 'event-type-description').send_keys('Created via UI')
-    #     self.browser.find_element(By.ID, 'add-event-type-form').submit()
-    #     WebDriverWait(self.browser, 5).until(
-    #         EC.invisibility_of_element_located((By.CSS_SELECTOR, '#addEventTypeModal.show'))
-    #     )
-    #     # Open Add Event modal and check event type dropdown
-    #     add_event_btn = self.browser.find_element(By.CSS_SELECTOR, '[data-bs-target="#addEventModal"]')
-    #     add_event_btn.click()
-    #     WebDriverWait(self.browser, 5).until(
-    #         EC.visibility_of_element_located((By.CSS_SELECTOR, '#addEventModal.show'))
-    #     )
-    #     event_type_dropdown = self.browser.find_element(By.ID, 'event-type')
-    #     options = [o.text for o in event_type_dropdown.find_elements(By.TAG_NAME, 'option')]
-    #     assert 'UI EventType' in options
+    def test_add_event_type_via_ui(self):
+        self.open_schedule_page()
 
-    # def test_add_event_via_ui(self):
-    #     self.open_schedule_page()
-    #     add_event_btn = self.browser.find_element(By.CSS_SELECTOR, '[data-bs-target="#addEventModal"]')
-    #     add_event_btn.click()
-    #     WebDriverWait(self.browser, 5).until(
-    #         EC.visibility_of_element_located((By.CSS_SELECTOR, '#addEventModal.show'))
-    #     )
-    #     self.browser.find_element(By.ID, 'event-name').send_keys('UI Event')
-    #     self.browser.find_element(By.ID, 'event-description').send_keys('Created via UI')
-    #     self.browser.find_element(By.ID, 'event-resource').find_elements(By.TAG_NAME, 'option')[1].click()
-    #     self.browser.find_element(By.ID, 'event-type').find_elements(By.TAG_NAME, 'option')[1].click()
-    #     import datetime
-    #     now = datetime.datetime.now().replace(microsecond=0, second=0)
-    #     start = now.isoformat()
-    #     end = (now + datetime.timedelta(hours=1)).isoformat()
-    #     self.browser.find_element(By.ID, 'event-start').send_keys(start)
-    #     self.browser.find_element(By.ID, 'event-end').send_keys(end)
-    #     self.browser.find_element(By.ID, 'add-event-form').submit()
-    #     WebDriverWait(self.browser, 5).until(
-    #         EC.invisibility_of_element_located((By.CSS_SELECTOR, '#addEventModal.show'))
-    #     )
-    #     # Check if the event appears on the calendar (look for badge)
-    #     badges = self.browser.find_elements(By.CLASS_NAME, 'badge')
-    #     assert any('UI Event' in b.text for b in badges)
+        category = ResourceCategory.objects.create(name='Room', description='A room') # type: ignore
+        Resource.objects.create(name='Conference Room', description='A big room', category=category) # type: ignore
+
+        add_event_btn = self.browser.find_element(By.CSS_SELECTOR, '[data-bs-target="#addEventModal"]')
+        add_event_btn.click()
+        WebDriverWait(self.browser, 5).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, '#addEventModal.show'))
+        )
+        time.sleep(0.5)
+
+        add_event_type_btn = self.browser.find_element(By.CSS_SELECTOR, '[data-bs-target="#addEventTypeModal"]')
+        add_event_type_btn.click()
+        WebDriverWait(self.browser, 5).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, '#addEventTypeModal.show'))
+        )
+        time.sleep(0.5)
+        self.browser.find_element(By.ID, 'event-type-name').send_keys('UI EventType')
+        self.browser.find_element(By.ID, 'event-type-description').send_keys('Created via UI')
+        self.browser.find_element(By.ID, 'add-event-type-form').submit()
+        WebDriverWait(self.browser, 5).until(
+            EC.invisibility_of_element_located((By.CSS_SELECTOR, '#addEventTypeModal.show'))
+        )
+        time.sleep(0.5)
+        # Open Add Event modal and check event type dropdown
+        add_event_btn = self.browser.find_element(By.CSS_SELECTOR, '[data-bs-target="#addEventModal"]')
+        add_event_btn.click()
+        WebDriverWait(self.browser, 5).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, '#addEventModal.show'))
+        )
+        time.sleep(0.5)
+        event_type_dropdown = self.browser.find_element(By.ID, 'event-type')
+        options = [o.text for o in event_type_dropdown.find_elements(By.TAG_NAME, 'option')]
+        assert 'UI EventType' in options
+
+    def test_add_event_via_ui(self):
+        category = ResourceCategory.objects.create(name='Room', description='A room') # type: ignore
+        Resource.objects.create(name='Conference Room', description='A big room', category=category) # type: ignore
+        EventType.objects.create(name='Meeting', description='A meeting', block_resource=False) # type: ignore
+        for event_type in EventType.objects.all():
+            print(event_type)
+        assert(EventType.objects.filter(name='Meeting').exists())
+
+        self.open_schedule_page()
+
+        add_event_btn = self.browser.find_element(By.CSS_SELECTOR, '[data-bs-target="#addEventModal"]')
+        add_event_btn.click()
+        WebDriverWait(self.browser, 5).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, '#addEventModal.show'))
+        )
+        time.sleep(0.5)
+        options = [o.text for o in self.browser.find_element(By.ID, 'event-resource').find_elements(By.TAG_NAME, 'option')]
+        print(options)
+        options = [o.text for o in self.browser.find_element(By.ID, 'event-type').find_elements(By.TAG_NAME, 'option')]
+        print(options)
+        self.browser.find_element(By.ID, 'event-name').send_keys('UI Event')
+        self.browser.find_element(By.ID, 'event-description').send_keys('Created via UI')
+        self.browser.find_element(By.ID, 'event-resource').find_elements(By.TAG_NAME, 'option')[1].click()
+        self.browser.find_element(By.ID, 'event-type').find_elements(By.TAG_NAME, 'option')[1].click()
+        now = datetime.now().replace(microsecond=0, second=0)
+        start = now.isoformat()
+        end = (now + timedelta(hours=1)).isoformat()
+        self.browser.find_element(By.ID, 'event-start').send_keys(start)
+        self.browser.find_element(By.ID, 'event-end').send_keys(end)
+        self.browser.find_element(By.ID, 'add-event-form').submit()
+        WebDriverWait(self.browser, 5).until(
+            EC.invisibility_of_element_located((By.CSS_SELECTOR, '#addEventModal.show'))
+        )
+        # Check if the event appears on the calendar (look for badge)
+        badges = self.browser.find_elements(By.CLASS_NAME, 'badge')
+        assert any('UI Event' in b.text for b in badges)
