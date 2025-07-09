@@ -81,6 +81,7 @@
             "July", "August", "September", "October", "November", "December"
         ];
         let today = new Date();
+        let currentDate = today.getDate();
         let currentMonth = today.getMonth();
         let currentYear = today.getFullYear();
 
@@ -110,6 +111,7 @@
             events: API_BASE + 'events/',
         };
 
+        
         function renderCalendar(month, year) {
             document.getElementById('calendar-month').textContent = `${monthNames[month]} ${year}`;
             const firstDay = new Date(year, month, 1);
@@ -128,7 +130,7 @@
                 function occursOnDay(ev, d) {
                   // Normalize all dates to midnight
                   function toMidnight(date) {
-                    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                    return new Date(date.getFullYear(), date.getMonth(), date.getDate(),0,0,0);
                   }
                   const start = toMidnight(new Date(ev.start_time));
                   const end = toMidnight(new Date(ev.end_time));
@@ -137,6 +139,7 @@
                   // For recurring events, use repeat_until or end_time as the last day
                   if (!ev.is_recurring) {
                     // Non-recurring: show on all days in range
+                    console.log(ev, d)
                     return thisDay >= start && thisDay <= end;
                   }
                   // Recurring: only show if thisDay is in [start, repeatUntil]
@@ -327,13 +330,14 @@
                             end_time: form.end_time.value,
                             is_recurring: form.is_recurring.checked,
                             recurrence_rule: form.recurrence_rule.value,
-                            repeat_until: form.repeat_until.value
+                            repeat_until: form.repeat_until.value != "" ? form.repeat_until.value : `${currentYear}-${currentMonth}-${currentDate}`
                         })
                     })
                     .then(res => res.json())
                     .then(() => {
                         form.reset();
                         bootstrap.Modal.getOrCreateInstance(document.getElementById('addEventModal')).hide();
+                        renderCalendar(currentMonth, currentYear)
                     });
                 });
             }

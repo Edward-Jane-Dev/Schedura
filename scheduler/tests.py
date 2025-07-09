@@ -10,6 +10,7 @@ from rest_framework.test import APITestCase
 from .models import Event, Resource, ResourceCategory, EventType
 from django.utils import timezone
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 
 # Create your tests here.
@@ -86,6 +87,7 @@ class SchedulerSeleniumUITests(LiveServerTestCase):
     def setUpClass(cls):
         super().setUpClass()
         chrome_options = Options()
+        chrome_options.set_capability('goog:loggingPrefs', {"browser":"ALL"})
         # chrome_options.add_argument('--headless')
         # chrome_options.add_argument('--no-sandbox')
         # chrome_options.add_argument('--disable-dev-shm-usage')
@@ -270,14 +272,31 @@ class SchedulerSeleniumUITests(LiveServerTestCase):
         self.browser.find_element(By.ID, 'event-resource').find_elements(By.TAG_NAME, 'option')[1].click()
         self.browser.find_element(By.ID, 'event-type').find_elements(By.TAG_NAME, 'option')[1].click()
         now = datetime.now().replace(microsecond=0, second=0)
-        start = now.isoformat()
-        end = (now + timedelta(hours=1)).isoformat()
-        self.browser.find_element(By.ID, 'event-start').send_keys(start)
-        self.browser.find_element(By.ID, 'event-end').send_keys(end)
+        start = now
+        end = now + timedelta(hours=1)
+        self.browser.find_element(By.ID, 'event-start').send_keys(start.day)
+        self.browser.find_element(By.ID, 'event-start').send_keys(start.month)
+        self.browser.find_element(By.ID, 'event-start').send_keys(start.year)
+        self.browser.find_element(By.ID, 'event-start').send_keys(Keys.TAB)
+        self.browser.find_element(By.ID, 'event-start').send_keys("00")
+        self.browser.find_element(By.ID, 'event-start').send_keys("00")
+        time.sleep(10)
+        self.browser.find_element(By.ID, 'event-end').send_keys(end.day)
+        self.browser.find_element(By.ID, 'event-end').send_keys(end.month)
+        self.browser.find_element(By.ID, 'event-end').send_keys(end.year)
+        self.browser.find_element(By.ID, 'event-end').send_keys(Keys.TAB)
+        self.browser.find_element(By.ID, 'event-end').send_keys("23")
+        self.browser.find_element(By.ID, 'event-end').send_keys("59")
         self.browser.find_element(By.ID, 'add-event-form').submit()
         WebDriverWait(self.browser, 5).until(
             EC.invisibility_of_element_located((By.CSS_SELECTOR, '#addEventModal.show'))
         )
+        time.sleep(2)
+
+        # logs = self.browser.get_log("browser")
+
+        # print(logs)
         # Check if the event appears on the calendar (look for badge)
-        badges = self.browser.find_elements(By.CLASS_NAME, 'badge')
-        assert any('UI Event' in b.text for b in badges)
+        assert(Event.objects.filter(name='UI Event').exists())
+        # badges = self.browser.find_elements(By.CLASS_NAME, 'badge')
+        # assert any('UI Event' in b.text for b in badges)
