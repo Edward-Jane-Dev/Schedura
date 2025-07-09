@@ -280,7 +280,7 @@ class SchedulerSeleniumUITests(LiveServerTestCase):
         self.browser.find_element(By.ID, 'event-start').send_keys(Keys.TAB)
         self.browser.find_element(By.ID, 'event-start').send_keys("00")
         self.browser.find_element(By.ID, 'event-start').send_keys("00")
-        time.sleep(10)
+        
         self.browser.find_element(By.ID, 'event-end').send_keys(end.day)
         self.browser.find_element(By.ID, 'event-end').send_keys(end.month)
         self.browser.find_element(By.ID, 'event-end').send_keys(end.year)
