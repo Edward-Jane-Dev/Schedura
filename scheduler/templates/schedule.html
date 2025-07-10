@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule - Schedura</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Schedura</a>
+        </div>
+    </nav>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8 text-center">
+                <h1 class="display-5">Your Schedule</h1>
+                <p class="lead">This is where your events, appointments, or tasks will appear.</p>
+                <!-- <div class="alert alert-info mt-4">No events scheduled yet. Add your first event!</div> -->
+                <div class="mb-4 text-end">
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addEventModal">
+                        <i class="bi bi-plus-lg"></i> Add Event
+                    </button>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <button class="btn btn-outline-secondary btn-sm" id="prev-month">&lt;</button>
+                    <h3 id="calendar-month" class="fw-bold mb-0"></h3>
+                    <button class="btn btn-outline-secondary btn-sm" id="next-month">&gt;</button>
+                </div>
+                <div class="calendar-modern-bg p-4 rounded-4 shadow-sm">
+                    <div class="row g-1 mb-2">
+                        <div class="col text-center text-secondary fw-semibold">Mon</div>
+                        <div class="col text-center text-secondary fw-semibold">Tue</div>
+                        <div class="col text-center text-secondary fw-semibold">Wed</div>
+                        <div class="col text-center text-secondary fw-semibold">Thu</div>
+                        <div class="col text-center text-secondary fw-semibold">Fri</div>
+                        <div class="col text-center text-secondary fw-semibold">Sat</div>
+                        <div class="col text-center text-secondary fw-semibold">Sun</div>
+                    </div>
+                    <div id="calendar-days"></div>
+                    <p class="text-muted mt-3">(Events will appear in the calendar days.)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <style>
+        body {
+            background: #f8fafc;
+        }
+        .calendar-modern-bg {
+            background: #fff;
+        }
+        .calendar-modern-day {
+            border-radius: 1rem;
+            min-height: 90px;
+            height: 100%;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+            transition: box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+        .calendar-modern-day:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+            cursor: pointer;
+        }
+        .calendar-modern-day .card-body {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: flex-start;
+            padding: 0.5rem;
+        }
+    </style>
+    <script>
+        const monthNames = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+        let today = new Date();
+        let currentDate = today.getDate();
+        let currentMonth = today.getMonth();
+        let currentYear = today.getFullYear();
+
+        // --- CSRF Token Helper ---
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        // --- API URLs ---
+        const API_BASE = '/api/';
+        const ENDPOINTS = {
+            eventTypes: API_BASE + 'event-types/',
+            resources: API_BASE + 'resources/',
+            resourceCategories: API_BASE + 'resource-categories/',
+            events: API_BASE + 'events/',
+        };
+
+        
+        function renderCalendar(month, year) {
+            document.getElementById('calendar-month').textContent = `${monthNames[month]} ${year}`;
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            let startDay = firstDay.getDay() - 1;
+            if (startDay < 0) startDay = 6;
+            const totalDays = lastDay.getDate();
+            let html = '';
+            let day = 1;
+            let prevMonthLastDay = new Date(year, month, 0).getDate();
+
+            fetch(`${ENDPOINTS.events}?start_time__lte=${year}-${String(month+1).padStart(2,'0')}-31&end_time__gte=${year}-${String(month+1).padStart(2,'0')}-01`)
+              .then(res => res.json())
+              .then(events => {
+                // For each day, collect events that occur on that day
+                function occursOnDay(ev, d) {
+                  // Normalize all dates to midnight
+                  function toMidnight(date) {
+                    return new Date(date.getFullYear(), date.getMonth(), date.getDate(),0,0,0);
+                  }
+                  const start = toMidnight(new Date(ev.start_time));
+                  const end = toMidnight(new Date(ev.end_time));
+                  const repeatUntil = ev.repeat_until ? toMidnight(new Date(ev.repeat_until)) : end;
+                  const thisDay = new Date(year, month, d);
+                  // For recurring events, use repeat_until or end_time as the last day
+                  if (!ev.is_recurring) {
+                    // Non-recurring: show on all days in range
+                    console.log(ev, d)
+                    return thisDay >= start && thisDay <= end;
+                  }
+                  // Recurring: only show if thisDay is in [start, repeatUntil]
+                  if (thisDay < start || thisDay > repeatUntil) return false;
+                  let recur = ev.recurrence_rule;
+                  if (!recur) return false;
+                  if (recur === 'daily') return true;
+                  if (recur === 'weekly') {
+                    return start.getDay() === thisDay.getDay();
+                  }
+                  if (recur === 'every 2 weeks') {
+                    const diffDays = Math.floor((thisDay - start) / (1000*60*60*24));
+                    return start.getDay() === thisDay.getDay() && diffDays % 14 === 0;
+                  }
+                  if (recur === 'monthly') {
+                    return start.getDate() === thisDay.getDate();
+                  }
+                  if (recur === 'every 2 months') {
+                    return start.getDate() === thisDay.getDate() && (thisDay.getMonth() - start.getMonth() + 12 * (thisDay.getFullYear() - start.getFullYear())) % 2 === 0;
+                  }
+                  if (recur === 'every 6 months') {
+                    return start.getDate() === thisDay.getDate() && (thisDay.getMonth() - start.getMonth() + 12 * (thisDay.getFullYear() - start.getFullYear())) % 6 === 0;
+                  }
+                  if (recur === 'yearly') {
+                    return start.getDate() === thisDay.getDate() && start.getMonth() === thisDay.getMonth();
+                  }
+                  return false;
+                }
+                // 6 rows to cover all month layouts
+                for (let week = 0; week < 6; week++) {
+                  html += '<div class="row row-cols-7 g-1 mb-1">';
+                  for (let d = 0; d < 7; d++) {
+                    if (week === 0 && d < startDay) {
+                      html += `<div class="col"><div class="calendar-modern-day card text-muted bg-light border-0"><div class="card-body p-2">${prevMonthLastDay - startDay + d + 1}</div></div></div>`;
+                    } else if (day > totalDays) {
+                      let nextDay = day - totalDays;
+                      html += `<div class="col"><div class="calendar-modern-day card text-muted bg-light border-0"><div class="card-body p-2">${nextDay}</div></div></div>`;
+                      day++;
+                    } else {
+                      // Main month days
+                      let eventHtml = '';
+                      events.forEach(ev => {
+                        if (occursOnDay(ev, day)) {
+                          eventHtml += `<div class='badge bg-primary text-wrap mb-1 w-100' title='${ev.description || ''}'>${ev.name}</div>`;
+                        }
+                      });
+                      html += `<div class="col"><div class="calendar-modern-day card bg-white border-0"><div class="card-body p-2"><div>${day}</div>${eventHtml}</div></div></div>`;
+                      day++;
+                    }
+                  }
+                  html += '</div>';
+                  if (day > totalDays) break;
+                }
+                document.getElementById('calendar-days').innerHTML = html;
+              });
+        }
+
+        document.getElementById('prev-month').addEventListener('click', function() {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar(currentMonth, currentYear);
+        });
+
+        document.getElementById('next-month').addEventListener('click', function() {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar(currentMonth, currentYear);
+        });
+
+        renderCalendar(currentMonth, currentYear);
+
+        // --- Populate Dropdowns ---
+        function populateDropdown(url, dropdown, valueField, textField, extraOption) {
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    dropdown.innerHTML = extraOption || '';
+                    data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item[valueField];
+                        option.textContent = item[textField];
+                        dropdown.appendChild(option);
+                    });
+                });
+        }
+
+        function refreshAllDropdowns() {
+            populateDropdown(ENDPOINTS.eventTypes, document.getElementById('event-type'), 'id', 'name', '<option value="">Select event type...</option>');
+            populateDropdown(ENDPOINTS.resources, document.getElementById('event-resource'), 'id', 'name', '<option value="">Select resource...</option>');
+            populateDropdown(ENDPOINTS.resourceCategories, document.getElementById('resource-category-modal'), 'id', 'name', '<option value="">Select category...</option>');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshAllDropdowns();
+
+            // --- Add EventType ---
+            var eventTypeForm = document.getElementById('add-event-type-form');
+            if (eventTypeForm) {
+                eventTypeForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const form = e.target;
+                    fetch(ENDPOINTS.eventTypes, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                        body: JSON.stringify({
+                            name: form.name.value,
+                            description: form.description.value,
+                            block_resource: form.block_resource.checked
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(() => {
+                        refreshAllDropdowns();
+                        form.reset();
+                        bootstrap.Modal.getOrCreateInstance(document.getElementById('addEventTypeModal')).hide();
+                    });
+                });
+            }
+
+            // --- Add Resource Category ---
+            var resourceCategoryForm = document.getElementById('add-resource-category-form');
+            if (resourceCategoryForm) {
+                resourceCategoryForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const form = e.target;
+                    fetch(ENDPOINTS.resourceCategories, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                        body: JSON.stringify({
+                            name: form.name.value,
+                            description: form.description.value
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(() => {
+                        refreshAllDropdowns();
+                        form.reset();
+                        bootstrap.Modal.getOrCreateInstance(document.getElementById('addResourceCategoryModal')).hide();
+                    });
+                });
+            }
+
+            // --- Add Resource ---
+            var resourceForm = document.getElementById('add-resource-form');
+            if (resourceForm) {
+                resourceForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const form = e.target;
+                    fetch(ENDPOINTS.resources, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                        body: JSON.stringify({
+                            name: form.name.value,
+                            description: form.description.value,
+                            category: form.category.value
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(() => {
+                        refreshAllDropdowns();
+                        form.reset();
+                        bootstrap.Modal.getOrCreateInstance(document.getElementById('addResourceModal')).hide();
+                    });
+                });
+            }
+
+            // --- Add Event ---
+            var eventForm = document.getElementById('add-event-form');
+            if (eventForm) {
+                eventForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const form = e.target;
+                    fetch(ENDPOINTS.events, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                        body: JSON.stringify({
+                            name: form.name.value,
+                            description: form.description.value,
+                            resource: form.resource.value,
+                            event_type: form.event_type.value,
+                            start_time: form.start_time.value,
+                            end_time: form.end_time.value,
+                            is_recurring: form.is_recurring.checked,
+                            recurrence_rule: form.recurrence_rule.value,
+                            repeat_until: form.repeat_until.value != "" ? form.repeat_until.value : `${currentYear}-${currentMonth}-${currentDate}`
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(() => {
+                        form.reset();
+                        bootstrap.Modal.getOrCreateInstance(document.getElementById('addEventModal')).hide();
+                        renderCalendar(currentMonth, currentYear)
+                    });
+                });
+            }
+        });
+    </script>
+    <!-- Add Event Modal -->
+    <div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addEventModalLabel">Add New Event</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="add-event-form">
+              <div class="mb-3">
+                <label for="event-name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="event-name" name="name" required>
+              </div>
+              <div class="mb-3">
+                <label for="event-description" class="form-label">Description</label>
+                <textarea class="form-control" id="event-description" name="description" rows="2"></textarea>
+              </div>
+              <div class="mb-3 d-flex align-items-end">
+                <div class="flex-grow-1">
+                  <label for="event-resource" class="form-label">Resource</label>
+                  <select class="form-select" id="event-resource" name="resource" required>
+                    <option value="">Select resource...</option>
+                    <!-- Resource options to be populated dynamically -->
+                  </select>
+                </div>
+                <button type="button" class="btn btn-link ms-2 pb-1" data-bs-toggle="modal" data-bs-target="#addResourceModal" title="Add Resource">
+                  <i class="bi bi-plus-circle"></i>
+                </button>
+              </div>
+              <div class="mb-3 d-flex align-items-end">
+                <div class="flex-grow-1">
+                  <label for="event-type" class="form-label">Event Type</label>
+                  <select class="form-select" id="event-type" name="event_type" required>
+                    <option value="">Select event type...</option>
+                    <!-- Event type options to be populated dynamically -->
+                  </select>
+                </div>
+                <button type="button" class="btn btn-link ms-2 pb-1" data-bs-toggle="modal" data-bs-target="#addEventTypeModal" title="Add Event Type">
+                  <i class="bi bi-plus-circle"></i>
+                </button>
+              </div>
+              <div class="mb-3">
+                <label for="event-start" class="form-label">Start Time</label>
+                <input type="datetime-local" class="form-control" id="event-start" name="start_time" required>
+              </div>
+              <div class="mb-3">
+                <label for="event-end" class="form-label">End Time</label>
+                <input type="datetime-local" class="form-control" id="event-end" name="end_time" required>
+              </div>
+              <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" value="1" id="event-recurring" name="is_recurring">
+                <label class="form-check-label" for="event-recurring">Recurring Event</label>
+              </div>
+              <div class="mb-3">
+                <label for="event-recurrence" class="form-label">Recurrence Rule</label>
+                <select class="form-select" id="event-recurrence" name="recurrence_rule">
+                  <option value="">None</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="every two weeks">Every 2 weeks</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="every 2 months">Every 2 months</option>
+                  <option value="every 6 months">Every 6 months</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="event-repeat-until" class="form-label">Repeat Until</label>
+                <input type="date" class="form-control" id="event-repeat-until" name="repeat_until">
+              </div>
+              <button type="submit" class="btn btn-primary">Add Event</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Add EventType Modal -->
+    <div class="modal fade" id="addEventTypeModal" tabindex="-1" aria-labelledby="addEventTypeModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addEventTypeModalLabel">Add Event Type</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="add-event-type-form">
+              <div class="mb-3">
+                <label for="event-type-name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="event-type-name" name="name" required>
+              </div>
+              <div class="mb-3">
+                <label for="event-type-description" class="form-label">Description</label>
+                <textarea class="form-control" id="event-type-description" name="description" rows="2"></textarea>
+              </div>
+              <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" value="1" id="event-type-block-resource" name="block_resource">
+                <label class="form-check-label" for="event-type-block-resource">Block Resource</label>
+              </div>
+              <button type="submit" class="btn btn-primary">Add Event Type</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Add Resource Modal -->
+    <div class="modal fade" id="addResourceModal" tabindex="-1" aria-labelledby="addResourceModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addResourceModalLabel">Add Resource</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="add-resource-form">
+              <div class="mb-3">
+                <label for="resource-name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="resource-name" name="name" required>
+              </div>
+              <div class="mb-3">
+                <label for="resource-description" class="form-label">Description</label>
+                <textarea class="form-control" id="resource-description" name="description" rows="2"></textarea>
+              </div>
+              <div class="mb-3 d-flex align-items-end">
+                <div class="flex-grow-1">
+                  <label for="resource-category-modal" class="form-label">Category</label>
+                  <select class="form-select" id="resource-category-modal" name="category" required>
+                    <option value="">Select category...</option>
+                    <!-- Resource category options to be populated dynamically -->
+                  </select>
+                </div>
+                <button type="button" class="btn btn-link ms-2 pb-1" data-bs-toggle="modal" data-bs-target="#addResourceCategoryModal" title="Add Resource Category">
+                  <i class="bi bi-plus-circle"></i>
+                </button>
+              </div>
+              <button type="submit" class="btn btn-primary">Add Resource</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Add Resource Category Modal -->
+    <div class="modal fade" id="addResourceCategoryModal" tabindex="-1" aria-labelledby="addResourceCategoryModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addResourceCategoryModalLabel">Add Resource Category</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="add-resource-category-form">
+              <div class="mb-3">
+                <label for="resource-category-name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="resource-category-name" name="name" required>
+              </div>
+              <div class="mb-3">
+                <label for="resource-category-description" class="form-label">Description</label>
+                <textarea class="form-control" id="resource-category-description" name="description" rows="2"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary">Add Resource Category</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
